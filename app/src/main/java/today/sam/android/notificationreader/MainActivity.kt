@@ -9,7 +9,7 @@ import android.content.Context
 import android.support.v7.app.NotificationCompat
 
 class MainActivity : AppCompatActivity() {
-    private var currentId = 0
+    private var mCurrentId = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -27,7 +27,7 @@ class MainActivity : AppCompatActivity() {
                     .setContentText("Body text")
                     .setSmallIcon(R.drawable.abc_btn_check_material)
                     .build()
-            notificationManager.notify(currentId++, notif)
+            notificationManager.notify(++mCurrentId, notif)
         }
     }
 }

@@ -9,28 +9,28 @@ import java.util.concurrent.ConcurrentLinkedQueue
 
 private const val T = "TTS"
 class TTSQueue(applicationContext: Context) {
-    val myTts = TextToSpeech(applicationContext) {
+    val mTts = TextToSpeech(applicationContext) {
         Log.d(T, "TTS is ready")
     }
-    val audioManager = applicationContext.getSystemService(Context.AUDIO_SERVICE) as AudioManager
-    val afChangeListener = AudioManager.OnAudioFocusChangeListener { focusChange ->
+    val mAudioManager = applicationContext.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+    val mAfChangeListener = AudioManager.OnAudioFocusChangeListener { focusChange ->
         Log.d(T, "afChange: $focusChange")
     }
 
-    val queue = ConcurrentLinkedQueue<String>()
-    var isConsuming = false
+    private val mQueue = ConcurrentLinkedQueue<String>()
+    private var mIsConsuming = false
 
     fun enqueue(message: String) {
-        queue.add(message)
-        if (!isConsuming) {
+        mQueue.add(message)
+        if (!mIsConsuming) {
             consume()
         }
     }
 
     private fun consume() {
-        isConsuming = true
+        mIsConsuming = true
 
-        val result = audioManager.requestAudioFocus(afChangeListener, AudioManager.STREAM_NOTIFICATION, AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)
+        val result = mAudioManager.requestAudioFocus(mAfChangeListener, AudioManager.STREAM_NOTIFICATION, AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)
         if (result != AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
             Log.d("TTS", "Duck request result $result != success")
         }
@@ -39,15 +39,15 @@ class TTSQueue(applicationContext: Context) {
     }
 
     private fun consumeNext(isFirst: Boolean) {
-        val message = queue.poll()
+        val message = mQueue.poll()
         if (message == null) {
             stopConsuming()
             return
         }
 
         Handler().postDelayed(Runnable {
-            if (audioManager.isWiredHeadsetOn) {
-                myTts!!.speak(message, TextToSpeech.QUEUE_FLUSH, null)
+            if (mAudioManager.isWiredHeadsetOn) {
+                mTts!!.speak(message, TextToSpeech.QUEUE_FLUSH, null)
             } else {
                 Log.d(T, "No wired headset")
                 stopConsuming()
@@ -57,7 +57,7 @@ class TTSQueue(applicationContext: Context) {
         val isSpeakingHandler = Handler()
         val isSpeakingCheck = object : Runnable {
             override fun run() {
-                if (myTts!!.isSpeaking) {
+                if (mTts!!.isSpeaking) {
                     isSpeakingHandler.postDelayed(this, 300)
                 } else {
                     consumeNext(false)
@@ -69,8 +69,8 @@ class TTSQueue(applicationContext: Context) {
 
     private fun stopConsuming() {
         Log.d("TTS", "Finished speaking")
-        audioManager.abandonAudioFocus(afChangeListener)
-        queue.clear()
-        isConsuming = false
+        mAudioManager.abandonAudioFocus(mAfChangeListener)
+        mQueue.clear()
+        mIsConsuming = false
     }
 }
