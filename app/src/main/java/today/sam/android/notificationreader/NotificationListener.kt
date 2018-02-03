@@ -15,11 +15,17 @@ private val excludedPackages = setOf(
         // OSMAnd has it's own TTS, and does funky notifications
         "net.osmand.plus")
 
-private val T = "NotificationListener";
+private val T = "NotificationListener"
+
+// only allow a message of the same text to be repeated at most every X seconds
+private val messageRepeatGap = 120
 
 class NotificationListener : NotificationListenerService() {
     private var mQueue: TTSQueue? = null
+    // Don't reannounce messages with the same text in a short time period
     private var mLastTimeSaid = HashMap<String, Long>()
+    // Never reannounce a id/message pair
+    private var mHaveSaid = HashMap<Pair<Int, String>, Long>()
 
     override fun onCreate() {
         super.onCreate()
@@ -32,7 +38,9 @@ class NotificationListener : NotificationListenerService() {
         super.onListenerConnected()
     }
 
-    private fun normalize(s: String): String = s
+    private fun normalize(s: String): String {
+        return s.trim()
+    }
 
     private fun getNotificationReadout(sbn: StatusBarNotification): String? {
         val extras = sbn.notification.extras
@@ -76,16 +84,22 @@ class NotificationListener : NotificationListenerService() {
         }
 
         val lastTime = mLastTimeSaid[message]
+        if (mHaveSaid.contains(Pair(sbn.id, message))) {
+            Log.d(T, "Already announced ${sbn.id}, $message")
+            return
+        }
         val now = System.currentTimeMillis()
         if (lastTime != null) {
             val diffSecs = Math.abs(now - lastTime) / 1000
-            if (diffSecs < 2) {
+            if (diffSecs < messageRepeatGap) {
+                mLastTimeSaid[message] = now
                 Log.d(T, "Messages too close together ($diffSecs): $message")
                 return
             }
         }
 
         mLastTimeSaid[message] = now
+        mHaveSaid[Pair(sbn.id, message)] = now
         Log.d(T, "${sbn.packageName}-${sbn.id}-${sbn.tag}, ${sbn.notification.category}, ${sbn.notification.flags}: $message")
         mQueue!!.enqueue(message)
     }
