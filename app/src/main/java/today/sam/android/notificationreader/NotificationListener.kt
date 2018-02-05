@@ -11,9 +11,6 @@ private val excludedCategories = setOf(
         Notification.CATEGORY_PROGRESS,
         Notification.CATEGORY_SERVICE,
         Notification.CATEGORY_TRANSPORT)
-private val excludedPackages = setOf(
-        // OSMAnd has it's own TTS, and does funky notifications
-        "net.osmand.plus")
 
 private val T = "NotificationListener"
 
@@ -22,15 +19,18 @@ private val messageRepeatGap = 120
 
 class NotificationListener : NotificationListenerService() {
     private var mQueue: TTSQueue? = null
+    private var mSettings: Settings? = null
     // Don't reannounce messages with the same text in a short time period
     private var mLastTimeSaid = HashMap<String, Long>()
     // Never reannounce a id/message pair
     private var mHaveSaid = HashMap<Pair<Int, String>, Long>()
 
+
     override fun onCreate() {
         super.onCreate()
         Log.d(T, "onCreate")
         mQueue = TTSQueue(applicationContext)
+        mSettings = Settings(applicationContext)
     }
 
     override fun onListenerConnected() {
@@ -56,7 +56,8 @@ class NotificationListener : NotificationListenerService() {
         val name = normalize(applicationContext.packageManager.getApplicationLabel(pkgInfo!!).toString())
         val message = if (name != title) "$name: $title: $text" else "$name: $text"
 
-        if (excludedPackages.contains(sbn.packageName) || excludedCategories.contains(sbn.notification.category)) {
+        val enabledForPackage = mSettings!!.isEnabledForPackageName(sbn.packageName)
+        if (!enabledForPackage || excludedCategories.contains(sbn.notification.category)) {
             Log.d(T, "Excluded ${sbn.packageName} ${sbn.notification.category}: $message")
             return null
         }
